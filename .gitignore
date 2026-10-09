@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+warehouse.db
+backend/warehouse.db
+web/node_modules/
+web/.next/
+web/out/
+.vercel
+*.log
+agent-tools/

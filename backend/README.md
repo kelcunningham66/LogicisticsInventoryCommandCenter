@@ -1,5 +1,7 @@
 # Warehouse Command Center — Backend
 
+Part of the Logicistics Inventory Command Center. The live floor is the repository root. This directory is the FastAPI and scikit-learn engine.
+
 A real FastAPI + scikit-learn backend implementing the six core features:
 live inventory summary, ML-based reorder prediction, slot optimization,
 pick-path optimization (nearest-neighbor + 2-opt), and barcode scan

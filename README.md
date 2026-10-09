@@ -1,85 +1,61 @@
-# AI-Powered Logistics Inventory Command Center
+# Logicistics Inventory Command Center
 
-A warehouse operations platform that predicts inventory needs, optimizes
-storage placement, and computes fast pick routes — built to address six
-concrete warehouse problems: overstocking, stockouts on fast movers, workers
-searching for items, inefficient picking, delayed replenishment, and poor
-manager visibility.
+One warehouse project: a live operations floor, a FastAPI prediction engine, and a Next.js operator console.
 
-## What's in this repo
+**Live demo:** [https://logicistics-inventory-command-cente.vercel.app/warehouse-command-center.html](https://logicistics-inventory-command-cente.vercel.app/warehouse-command-center.html)
 
-| Path | What it is | Status |
-|---|---|---|
-| `warehouse-command-center.html` | Interactive frontend demo, all 6 features, mock data | Working, runs standalone in any browser |
-| `backend/` | FastAPI + scikit-learn API: forecasting, slotting, pick-path, scan validation | Built, unit-tested, **not yet run against a live install** (see Verification below) |
-| `backend/tests/` | Unit tests for the routing and scoring algorithms | **10/10 passing**, run in this environment |
-| `backend/scripts/evaluate_forecast.py` | Train/test split evaluation of the forecasting approach | **Run — real numbers below**, not sklearn (see note) |
-| `ARCHITECTURE.md` | System diagram, data model, phased roadmap | Reference doc |
+That page is the command center. Stock, slotting, pick paths, and reorder signals are all on one floor plan. The same page is also served at `/` when this repository is the Vercel deployment.
 
-## The approach
+## What this repo contains
 
-**Prediction** — per-SKU regression on sales history (day index, day-of-week,
-weekend flag, 7-day rolling mean → next day's units) rolled forward
-recursively for a 7-day forecast, converted into days-remaining, a suggested
-reorder date, and a confidence score from residual variance.
+| Path | What it is |
+|---|---|
+| `index.html` and `warehouse-command-center.html` | The live floor demo. Same page, so both the site root and the original path open it. |
+| `backend/` | FastAPI and scikit-learn: forecasting, slotting, pick-path, and scan validation. |
+| `web/` | Next.js operator console: landing page, command board, and in-memory demo API. |
+| `ARCHITECTURE.md` | System diagram, data model, and roadmap. |
 
-**Slotting** — a weighted score (`0.6 × demand + 0.25 × inverse weight +
-0.15 × purchase affinity`) that pulls fast movers toward the dock while
-pinning heavy items to lower shelves regardless of demand.
+## Run the live floor locally
 
-**Pick-path** — nearest-neighbor construction followed by 2-opt local search
-over a warehouse grid graph: a standard approximation approach for the
-Traveling Salesperson Problem.
+From the repository root:
 
-## Verification — what's actually been checked, and how
+```bash
+python3 -m http.server 47231
+```
 
-I was upfront through the build process about not overclaiming, so here's
-exactly what's verified versus what still needs a real run:
+Open [http://127.0.0.1:47231](http://127.0.0.1:47231).
 
-- **Routing algorithm**: `backend/tests/test_graph_utils.py`, 10 tests,
-  includes checking the 2-opt output against a brute-force optimal solution
-  on two different stop configurations — it matches both times. These tests
-  have zero external dependencies (pure Python + stdlib), so they ran
-  successfully in a sandboxed environment with no package installer access.
-- **Forecasting approach**: `backend/scripts/evaluate_forecast.py` reimplements
-  the same feature engineering with a closed-form NumPy least-squares fit
-  (scikit-learn wasn't installable in the build sandbox — no network access)
-  and reports train/test RMSE against a naive "tomorrow = yesterday"
-  baseline. Result: **beats the naive baseline on 4 of 6 synthetic SKUs**.
-  That's an honest, moderate result on synthetic data with a linear model —
-  the production service (`app/services/forecasting.py`) uses a
-  RandomForestRegressor on the same features, which should do better on
-  the non-linear day-of-week interactions a straight line can't capture,
-  but that specific claim hasn't been benchmarked yet.
-- **FastAPI backend**: every file passes `py_compile` (no syntax errors),
-  and the architecture follows standard FastAPI/SQLAlchemy patterns, but it
-  has **not been run end-to-end** — no `pip install`, no live `uvicorn`
-  server, no request ever sent to it. That's the single most important
-  thing to do before treating this as "done": `cd backend && pip install
-  -r requirements.txt && python -m app.data_seed && uvicorn app.main:app
-  --reload`, then hit `/docs` and click through each endpoint.
-- **Frontend ↔ backend integration**: not connected. The HTML demo runs on
-  hardcoded mock data in the browser; the API is a separate, standalone
-  service. Wiring them together (ideally rebuilding the demo in React so
-  state management isn't painful) is the next real step.
+## Run the prediction API
 
-## Known limitations
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m app.data_seed
+uvicorn app.main:app --reload
+```
 
-- Forecasting trained on synthetic sales data, not real inventory history.
-- No auth, no deployment, no Docker — all scoped for later phases in
-  `ARCHITECTURE.md`.
-- Barcode scanning is a UI simulator (dropdown selection), not integrated
-  with actual scanner hardware or a device camera.
-- Pick-path uses Manhattan-distance-on-a-grid as a stand-in for real
-  warehouse floor distances.
+Interactive docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
-## Why build it this way
+The floor demo uses its own in-browser data. The API is the tested engine behind forecasting, slotting, and routing.
 
-The interesting parts of this problem are combinatorial (routing, slotting)
-and statistical (forecasting), not the CRUD layer around them — so the
-pure-algorithm logic (`graph_utils.py`) is deliberately separated from
-anything that touches a database or web framework. That's what made it
-possible to unit-test the TSP approximation against a brute-force ground
-truth without needing a running server, and it's generally good practice:
-business logic that doesn't know it's inside a web app is easier to test,
-reuse, and reason about.
+## Run the operator console
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). `/` is the product page and `/command` is the operator board. Demo data lives in memory and resets on a cold start.
+
+## What has been checked
+
+- Pick-path routing in `backend/tests/test_graph_utils.py`: nearest-neighbor plus 2-opt matches a brute-force optimum on the small stop sets in that file. The tests use the Python standard library only.
+- Forecasting approach in `backend/scripts/evaluate_forecast.py`: a least-squares check on synthetic SKUs. The service itself uses `RandomForestRegressor` on the same features.
+- The floor demo and the operator console are separate interfaces over the same warehouse story. They do not call the FastAPI process yet.
+
+## Vercel
+
+This repository is a static site at the root, so Vercel serves the command center instead of looking for a Next.js app. The Next.js app stays in `web/` and is run on its own.

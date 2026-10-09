@@ -1,0 +1,6 @@
+{
+  "framework": null,
+  "rewrites": [
+    { "source": "/", "destination": "/warehouse-command-center.html" }
+  ]
+}

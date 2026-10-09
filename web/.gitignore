@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+.env*.local
+data/store.json
+.vercel
+*.log
+__pycache__/
+.venv/
+venv/
